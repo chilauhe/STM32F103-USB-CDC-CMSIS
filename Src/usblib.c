@@ -21,9 +21,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-volatile USB_TypeDef *USB = (USB_TypeDef *)USB_BASE;
-volatile USBLIB_EPBuf EPBufTable[EPCOUNT] __attribute__((at(USB_PBUFFER)));
-volatile uint32_t     USBEP[EPCOUNT] __attribute__((at(USB_BASE)));
+volatile USB_TypeDef_ *USB_ = (USB_TypeDef_ *)USB_BASE;
+//volatile USBLIB_EPBuf EPBufTable[EPCOUNT] __attribute__((at(USB_PBUFFER)));
+#define EPBufTable ((USBLIB_EPBuf *)USB_PBUFFER)
+//volatile uint32_t     USBEP[EPCOUNT] __attribute__((at(USB_BASE)));
+#define USBEP ((uint32_t *)USB_BASE)
 USBLIB_SetupPacket   *SetupPacket;
 volatile uint8_t      DeviceAddress = 0;
 volatile USBLIB_WByte LineState;
@@ -166,18 +168,18 @@ const uint8_t USBD_CDC_CFG_DESCRIPTOR[] =
 
 /* USB String Descriptors */
 _USB_LANG_ID_(LANG_US);
-_USB_STRING_(wsVendor, L"SaeWave.com")
-_USB_STRING_(wsProd, L"RemoteSwitch HUB")
-_USB_STRING_(wsSN, L"0123-4567-89")
-_USB_STRING_(wsCDC, L"CDC Device")
-_USB_STRING_(wsCDCData, L"CDC Data")
+_USB_STRING_(wsVendor, u"SaeWave.com")
+_USB_STRING_(wsProd, u"RemoteSwitch HUB")
+_USB_STRING_(wsSN, u"0123-4567-89")
+_USB_STRING_(wsCDC, u"CDC Device")
+_USB_STRING_(wsCDCData, u"CDC Data")
 
 void USBLIB_Reset(void)
 {
     /* *********** WARNING ********** */
-    /* We DO NOT CHANGE BTABLE!! So we asume that buffer table start from address 0!!! */
+    /* We DO NOT CHANGE BTABLE!! So we assume that buffer table start from address 0!!! */
 
-    uint16_t Addr = sizeof(EPBufTable);
+    uint16_t Addr = 64; // BTABLE size 4 x 16bits x 8EP //sizeof(EPBufTable);
     for (uint8_t i = 0; i < EPCOUNT; i++) {
         EPBufTable[i].TX_Address.Value = Addr;
         EPBufTable[i].TX_Count.Value   = 0;
@@ -193,11 +195,11 @@ void USBLIB_Reset(void)
         if (!EpData[i].pRX_BUFF)
             EpData[i].pRX_BUFF = (uint16_t *)malloc(EpData[i].RX_Max);
 
-        USB->EPR[i] = (EpData[i].Number | EpData[i].Type | RX_VALID | TX_NAK);
+        USB_->EPR[i] = (EpData[i].Number | EpData[i].Type | RX_VALID | TX_NAK);
     }
 
     for (uint8_t i = EPCOUNT; i < 8; i++) {
-        USB->EPR[i] = i | RX_NAK | TX_NAK;
+        USB_->EPR[i] = i | RX_NAK | TX_NAK;
     }
     USB->CNTR   = USB_CNTR_CTRM | USB_CNTR_RESETM | USB_CNTR_SUSPM;
     USB->ISTR   = 0x00;
@@ -207,14 +209,14 @@ void USBLIB_Reset(void)
 
 void USBLIB_setStatTx(uint8_t EPn, uint16_t Stat)
 {
-    register uint16_t val = USB->EPR[EPn];
-    USB->EPR[EPn]         = (val ^ (Stat & EP_STAT_TX)) & (EP_MASK | EP_STAT_TX);
+    register uint16_t val = USB_->EPR[EPn];
+    USB_->EPR[EPn]         = (val ^ (Stat & EP_STAT_TX)) & (EP_MASK | EP_STAT_TX);
 }
 
 void USBLIB_setStatRx(uint8_t EPn, uint16_t Stat)
 {
-    register uint16_t val = USB->EPR[EPn];
-    USB->EPR[EPn]         = (val ^ (Stat & EP_STAT_RX)) & (EP_MASK | EP_STAT_RX);
+    register uint16_t val = USB_->EPR[EPn];
+    USB_->EPR[EPn]         = (val ^ (Stat & EP_STAT_RX)) & (EP_MASK | EP_STAT_RX);
 }
 
 void USBLIB_Pma2EPBuf2(uint8_t EPn)

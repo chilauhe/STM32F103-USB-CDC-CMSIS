@@ -49,6 +49,8 @@ int main(void)
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPBEN | RCC_APB2ENR_AFIOEN;
     /* ========= PB13 USB CONNECT ========= */
     /* PB12 - LED. Output PP */
+    GPIOB->CRH |= GPIO_CRH_MODE11_0;
+    GPIOB->CRH &= ~GPIO_CRH_CNF11;
     GPIOB->CRH |= GPIO_CRH_MODE12_0;
     GPIOB->CRH &= ~GPIO_CRH_CNF12;
 
@@ -73,7 +75,13 @@ int main(void)
     USBLIB_Init();
     GPIOB->ODR |= GPIO_ODR_ODR13; //UP
 
-    while (1) {};
+    GPIOB->ODR ^= GPIO_ODR_ODR12;
+
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
+    while (1) {
+        GPIOB->ODR ^= GPIO_ODR_ODR12 | GPIO_ODR_ODR11;
+        for(int i=0; i<720000; i++);
+    }
 }
 
 void TIM1_UP_IRQHandler() {

@@ -22,7 +22,7 @@
 #include "stdint.h"
 
 #define EPCOUNT 4
-#define USB_BASE ((uint32_t)0x40005C00)
+//#define USB_BASE ((uint32_t)0x40005C00)
 #define USB_PBUFFER ((uint32_t)0x40006000)
 #define STRX 12
 #define STTX 4
@@ -236,7 +236,7 @@ typedef struct {
     uint32_t FNR;
     uint32_t DADDR;
     uint32_t BTABLE;
-} USB_TypeDef;
+} USB_TypeDef_;
 
 typedef struct {
     uint16_t Value;
