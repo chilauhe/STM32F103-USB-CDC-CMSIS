@@ -30,11 +30,11 @@ int main(void)
         __NOP();
     };
     RCC->CR &= ~RCC_CR_PLLON; // Disable Pll
-    while ((RCC->CR & RCC_CR_PLLON)) {
+    while ((RCC->CR & RCC_CR_PLLRDY)) {
         __NOP();
     };
     RCC->CFGR &= ~0x3C0000;
-    RCC->CFGR |= RCC_CFGR_PLLMULL4; // Set Pll Mul to 4
+    RCC->CFGR |= RCC_CFGR_PLLMULL6; // Set Pll Mul to 4
     RCC->CFGR |= RCC_CFGR_USBPRE;
     RCC->CFGR |= RCC_CFGR_PLLSRC;
     RCC->CR |= RCC_CR_PLLON;
@@ -75,11 +75,9 @@ int main(void)
     USBLIB_Init();
     GPIOB->ODR |= GPIO_ODR_ODR13; //UP
 
-    GPIOB->ODR ^= GPIO_ODR_ODR12;
-
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
     while (1) {
-        GPIOB->ODR ^= GPIO_ODR_ODR12 | GPIO_ODR_ODR11;
+        GPIOB->ODR ^= GPIO_ODR_ODR11;
         for(int i=0; i<720000; i++);
     }
 }

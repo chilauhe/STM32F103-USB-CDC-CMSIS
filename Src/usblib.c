@@ -21,11 +21,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define __SECTION_PMA __attribute__((section(".PMA"))) /* USB PMA */
+
 volatile USB_TypeDef_ *USB_ = (USB_TypeDef_ *)USB_BASE;
-//volatile USBLIB_EPBuf EPBufTable[EPCOUNT] __attribute__((at(USB_PBUFFER)));
-#define EPBufTable ((USBLIB_EPBuf *)USB_PBUFFER)
+__SECTION_PMA volatile USBLIB_EPBuf EPBufTable[EPCOUNT];
 //volatile uint32_t     USBEP[EPCOUNT] __attribute__((at(USB_BASE)));
-#define USBEP ((uint32_t *)USB_BASE)
+#define USBEP ((volatile uint32_t *)USB_BASE)
 USBLIB_SetupPacket   *SetupPacket;
 volatile uint8_t      DeviceAddress = 0;
 volatile USBLIB_WByte LineState;
@@ -179,7 +180,7 @@ void USBLIB_Reset(void)
     /* *********** WARNING ********** */
     /* We DO NOT CHANGE BTABLE!! So we assume that buffer table start from address 0!!! */
 
-    uint16_t Addr = 64; // BTABLE size 4 x 16bits x 8EP //sizeof(EPBufTable);
+    uint16_t Addr = sizeof(EPBufTable);
     for (uint8_t i = 0; i < EPCOUNT; i++) {
         EPBufTable[i].TX_Address.Value = Addr;
         EPBufTable[i].TX_Count.Value   = 0;
@@ -195,11 +196,11 @@ void USBLIB_Reset(void)
         if (!EpData[i].pRX_BUFF)
             EpData[i].pRX_BUFF = (uint16_t *)malloc(EpData[i].RX_Max);
 
-        USB_->EPR[i] = (EpData[i].Number | EpData[i].Type | RX_VALID | TX_NAK);
+        *(uint16_t *)&(USB_->EPR[i]) = (uint16_t)(EpData[i].Number | EpData[i].Type | RX_VALID | TX_NAK);
     }
 
     for (uint8_t i = EPCOUNT; i < 8; i++) {
-        USB_->EPR[i] = i | RX_NAK | TX_NAK;
+        *(uint16_t *)&(USB_->EPR[i]) = (uint16_t)(i | RX_NAK | TX_NAK);
     }
     USB->CNTR   = USB_CNTR_CTRM | USB_CNTR_RESETM | USB_CNTR_SUSPM;
     USB->ISTR   = 0x00;
@@ -209,14 +210,14 @@ void USBLIB_Reset(void)
 
 void USBLIB_setStatTx(uint8_t EPn, uint16_t Stat)
 {
-    register uint16_t val = USB_->EPR[EPn];
-    USB_->EPR[EPn]         = (val ^ (Stat & EP_STAT_TX)) & (EP_MASK | EP_STAT_TX);
+    register uint16_t val = *(uint16_t *)&(USB_->EPR[EPn]);
+    *(uint16_t *)&(USB_->EPR[EPn])         = (val ^ (Stat & EP_STAT_TX)) & (EP_MASK | EP_STAT_TX);
 }
 
 void USBLIB_setStatRx(uint8_t EPn, uint16_t Stat)
 {
-    register uint16_t val = USB_->EPR[EPn];
-    USB_->EPR[EPn]         = (val ^ (Stat & EP_STAT_RX)) & (EP_MASK | EP_STAT_RX);
+    register uint16_t val = *(uint16_t *)&(USB_->EPR[EPn]);
+    *(uint16_t *)&(USB_->EPR[EPn])         = (val ^ (Stat & EP_STAT_RX)) & (EP_MASK | EP_STAT_RX);
 }
 
 void USBLIB_Pma2EPBuf2(uint8_t EPn)
