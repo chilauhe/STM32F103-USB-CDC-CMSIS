@@ -1,7 +1,7 @@
 #ifndef __DWT_H
 #define __DWT_H
 
-#include "stm32f10x.h"
+#include "stm32f1xx.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -14,7 +14,7 @@ set(SIZE arm-none-eabi-size)
 
 SET(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F103C8Tx_FLASH.ld)
 
-SET(COMMON_FLAGS "-mcpu=cortex-m0 ${FPU_FLAGS} -mthumb -mthumb-interwork -ffunction-sections -fdata-sections -g -fno-common -fmessage-length=0 -specs=nosys.specs -specs=nano.specs")
+SET(COMMON_FLAGS "-mcpu=cortex-m0 ${FPU_FLAGS} -O1 -mthumb -mthumb-interwork -ffunction-sections -fdata-sections -g -fno-common -fmessage-length=0 -specs=nosys.specs -specs=nano.specs")
 
 SET(CMAKE_CXX_FLAGS_INIT "${COMMON_FLAGS} -std=c++11")
 SET(CMAKE_C_FLAGS_INIT "${COMMON_FLAGS} -std=gnu11")
@@ -25,7 +25,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 add_definitions(-D__weak=__attribute__\(\(weak\)\) -D__packed=__attribute__\(\(__packed__\)\) -DSTM32F103xB -DHSI_VALUE=8000000 -DHSE_VALUE=8000000)
 
-file(GLOB_RECURSE SOURCES "startup/*.*" "Drivers/*.*" "Src/*.*" "Inc/*.*" "usb_lib/*.c" "RTE/Device/STM32F103C8/*.c")
+file(GLOB_RECURSE SOURCES "startup/*.*" "Drivers/*.*" "Src/*.*" "Inc/*.*" "usb_lib/*.c")
 
 include_directories(Inc Drivers/CMSIS/Device/ST/STM32F1xx/Include Drivers/CMSIS/Include usb_lib RTE/Device/STM32F103C8)
 

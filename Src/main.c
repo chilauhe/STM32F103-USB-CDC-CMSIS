@@ -16,7 +16,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "stm32f10x.h"
+#include "stm32f1xx.h"
 #include "usblib.h"
 #include "dwt.h"
 
@@ -57,7 +57,6 @@ int main(void)
     DWT_Delay_ms(10);
     GPIOB->ODR ^= GPIO_ODR_ODR9;
 
-    /* ========= PB13 USB CONNECT ========= */
     /* PB12 - LED. Output PP */
     GPIOB->CRH |= GPIO_CRH_MODE11_0;
     GPIOB->CRH &= ~GPIO_CRH_CNF11;
@@ -91,6 +90,10 @@ int main(void)
         GPIOB->ODR ^= GPIO_ODR_ODR11;
         DWT_Delay_ms(500);
     }
+}
+
+void HardFault_Handler() {
+    while(1);
 }
 
 void TIM1_UP_IRQHandler() {
