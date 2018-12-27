@@ -18,13 +18,15 @@
 
 #include "stm32f10x.h"
 #include "usblib.h"
+#include "dwt.h"
 
 USBLIB_WByte _LineState;
 
 int main(void)
 {
-
-    /* ============ 48 MHz ============= */
+    SystemCoreClock = 72000000;
+    // HSE = 8 MHz
+    /* ============ 72 MHz ============= */
     RCC->CFGR &= ~RCC_CFGR_SW; // Change System Clock to HSI
     while ((RCC->CFGR & RCC_CFGR_SWS) != 0x00) {
         __NOP();
@@ -34,8 +36,8 @@ int main(void)
         __NOP();
     };
     RCC->CFGR &= ~0x3C0000;
-    RCC->CFGR |= RCC_CFGR_PLLMULL6; // Set Pll Mul to 4
-    RCC->CFGR |= RCC_CFGR_USBPRE;
+    RCC->CFGR |= RCC_CFGR_PLLMULL9; // Pll Mul: x9 - 72MHz, x6 - 48MHz
+//    RCC->CFGR |= RCC_CFGR_USBPRE;   // USBPRE: 0 - x1.5, 1 - x1
     RCC->CFGR |= RCC_CFGR_PLLSRC;
     RCC->CR |= RCC_CR_PLLON;
     while (!(RCC->CR & RCC_CR_PLLON)) {
@@ -47,6 +49,14 @@ int main(void)
     };
 
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPBEN | RCC_APB2ENR_AFIOEN;
+    // PB9 PB10 dbg signal out
+    GPIOB->CRH |= GPIO_CRH_MODE10 | GPIO_CRH_MODE9;   // mode OUT 50MHz
+    GPIOB->CRH &= ~(GPIO_CRH_CNF10 | GPIO_CRH_CNF9);  // Push-pull
+
+    GPIOB->ODR ^= GPIO_ODR_ODR9;
+    DWT_Delay_ms(10);
+    GPIOB->ODR ^= GPIO_ODR_ODR9;
+
     /* ========= PB13 USB CONNECT ========= */
     /* PB12 - LED. Output PP */
     GPIOB->CRH |= GPIO_CRH_MODE11_0;
@@ -60,10 +70,10 @@ int main(void)
     
     /* =========== TIM1 ========== */
     RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
-    TIM1->PSC = 1000 - 1;
-    TIM1->ARR = 48000 - 1;
+    TIM1->PSC = 2000 - 1;
+    TIM1->ARR = 36000 - 1;
     TIM1->DIER |= TIM_DIER_UIE;
-    //TIM1->CR1 = TIM_CR1_CEN | TIM_CR1_ARPE;
+    TIM1->CR1 = TIM_CR1_CEN | TIM_CR1_ARPE;
     NVIC_SetPriority(TIM1_UP_IRQn, 15);
     NVIC_EnableIRQ(TIM1_UP_IRQn);
 
@@ -72,13 +82,14 @@ int main(void)
         __NOP();
     };
 
+    DWT_Init();
     USBLIB_Init();
     GPIOB->ODR |= GPIO_ODR_ODR13; //UP
 
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
     while (1) {
         GPIOB->ODR ^= GPIO_ODR_ODR11;
-        for(int i=0; i<720000; i++);
+        DWT_Delay_ms(500);
     }
 }
 
@@ -86,11 +97,11 @@ void TIM1_UP_IRQHandler() {
     TIM1->SR &= ~TIM_SR_UIF;
     GPIOB->ODR ^= GPIO_ODR_ODR12;
 
-    if (_LineState.L) {      //App connected to the virtual port
-        USBLIB_Transmit((uint16_t *)"Welcome to the club!\r\n", 22);
-    } else {
-        USBLIB_Transmit((uint16_t *)"Bye bye!\r\n", 10);
-    }
+//    if (_LineState.L) {      //App connected to the virtual port
+//        USBLIB_Transmit((uint16_t *)"Welcome to the club!\r\n", 22);
+//    } else {
+//        USBLIB_Transmit((uint16_t *)"Bye bye!\r\n", 10);
+//    }
 }
 
 void uUSBLIB_DataReceivedHandler(uint16_t *Data, uint16_t Length)
