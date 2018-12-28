@@ -25,6 +25,7 @@ USBLIB_WByte _LineState;
 int main(void)
 {
     SystemCoreClock = 72000000;
+    DWT_Init();
     // HSE = 8 MHz
     /* ============ 72 MHz ============= */
     RCC->CFGR &= ~RCC_CFGR_SW; // Change System Clock to HSI
@@ -81,7 +82,6 @@ int main(void)
         __NOP();
     };
 
-    DWT_Init();
     USBLIB_Init();
     GPIOB->ODR |= GPIO_ODR_ODR13; //UP
 
