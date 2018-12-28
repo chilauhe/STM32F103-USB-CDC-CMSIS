@@ -453,39 +453,21 @@ static void SetSysClock()
   RCC->CR |= ((uint32_t)RCC_CR_HSEON);
  
   /* Wait till HSE is ready and if Time out is reached exit */
-  do
-  {
-    HSEStatus = RCC->CR & RCC_CR_HSERDY;
-    StartUpCounter++;  
-  } while((HSEStatus == 0) && (StartUpCounter != 150));
+  while (((RCC->CR & RCC_CR_HSERDY) == 0));
 
-  if ((RCC->CR & RCC_CR_HSERDY) != RESET)
-  {
-    HSEStatus = (uint32_t)0x01;
-  }
-  else
-  {
-    HSEStatus = (uint32_t)0x00;
-  }  
+  /* Enable Prefetch Buffer */
+  FLASH->ACR |= FLASH_ACR_PRFTBE;
+  /* Flash 2 wait state */
+  FLASH->ACR &= (uint32_t)((uint32_t)~FLASH_ACR_LATENCY);
+  FLASH->ACR |= (uint32_t)FLASH_ACR_LATENCY_2;
+  /* HCLK = SYSCLK */
+  RCC->CFGR |= (uint32_t)RCC_CFGR_HPRE_DIV1;
 
-  if (HSEStatus == (uint32_t)0x01)
-  {
-    /* Enable Prefetch Buffer */
-    FLASH->ACR |= FLASH_ACR_PRFTBE;
+  /* PCLK2 = HCLK */
+  RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE2_DIV1;
 
-    /* Flash 2 wait state */
-    FLASH->ACR &= (uint32_t)((uint32_t)~FLASH_ACR_LATENCY);
-    FLASH->ACR |= (uint32_t)FLASH_ACR_LATENCY_2;    
-
- 
-    /* HCLK = SYSCLK */
-    RCC->CFGR |= (uint32_t)RCC_CFGR_HPRE_DIV1;
-      
-    /* PCLK2 = HCLK */
-    RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE2_DIV1;
-    
-    /* PCLK1 = HCLK */
-    RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE1_DIV2;
+  /* PCLK1 = HCLK */
+  RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE1_DIV2;
 
 #ifdef STM32F10X_CL
     /* Configure PLLs ------------------------------------------------------*/
@@ -520,23 +502,16 @@ static void SetSysClock()
     RCC->CR |= RCC_CR_PLLON;
 
     /* Wait till PLL is ready */
-    while((RCC->CR & RCC_CR_PLLRDY) == 0)
-    {
-    }
-    
+    while((RCC->CR & RCC_CR_PLLRDY) == 0);
+
     /* Select PLL as system clock source */
     RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_SW));
     RCC->CFGR |= (uint32_t)RCC_CFGR_SW_PLL;    
 
     /* Wait till PLL is used as system clock source */
-    while ((RCC->CFGR & (uint32_t)RCC_CFGR_SWS) != (uint32_t)0x08)
-    {
-    }
-  }
-  else
-  { /* If HSE fails to start-up, the application will have wrong clock 
-         configuration. User can add here some code to deal with this error */
-  }
+    while ((RCC->CFGR & (uint32_t)RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
+
+//    RCC->CFGR |= RCC_CFGR_USBPRE;   // USBPRE: 0 - x1.5, 1 - x1
 }
 
 /**

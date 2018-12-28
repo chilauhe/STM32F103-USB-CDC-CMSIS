@@ -24,51 +24,25 @@ USBLIB_WByte _LineState;
 
 int main(void)
 {
-    SystemCoreClock = 72000000;
     DWT_Init();
-    // HSE = 8 MHz
-    /* ============ 72 MHz ============= */
-    RCC->CFGR &= ~RCC_CFGR_SW; // Change System Clock to HSI
-    while ((RCC->CFGR & RCC_CFGR_SWS) != 0x00) {
-        __NOP();
-    };
-    RCC->CR &= ~RCC_CR_PLLON; // Disable Pll
-    while ((RCC->CR & RCC_CR_PLLRDY)) {
-        __NOP();
-    };
-    RCC->CFGR &= ~0x3C0000;
-    RCC->CFGR |= RCC_CFGR_PLLMULL9; // Pll Mul: x9 - 72MHz, x6 - 48MHz
-//    RCC->CFGR |= RCC_CFGR_USBPRE;   // USBPRE: 0 - x1.5, 1 - x1
-    RCC->CFGR |= RCC_CFGR_PLLSRC;
-    RCC->CR |= RCC_CR_PLLON;
-    while (!(RCC->CR & RCC_CR_PLLON)) {
-        __NOP();
-    };
-    RCC->CFGR |= RCC_CFGR_SW_1; // Change System Clock to PLL
-    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_1) {
-        __NOP();
-    };
 
+    // ===== GPIO init =====
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPBEN | RCC_APB2ENR_AFIOEN;
     // PB9 PB10 dbg signal out
     GPIOB->CRH |= GPIO_CRH_MODE10 | GPIO_CRH_MODE9;   // mode OUT 50MHz
     GPIOB->CRH &= ~(GPIO_CRH_CNF10 | GPIO_CRH_CNF9);  // Push-pull
 
-    GPIOB->ODR ^= GPIO_ODR_ODR9;
-    DWT_Delay_ms(10);
-    GPIOB->ODR ^= GPIO_ODR_ODR9;
-
-    /* PB12 - LED. Output PP */
+    // PB12 - LED. Output PP
     GPIOB->CRH |= GPIO_CRH_MODE11_0;
     GPIOB->CRH &= ~GPIO_CRH_CNF11;
     GPIOB->CRH |= GPIO_CRH_MODE12_0;
     GPIOB->CRH &= ~GPIO_CRH_CNF12;
 
-    /* PB13 - USB EN. Output PP */
+    // PB13 - USB Enable. Output PP
     GPIOB->CRH |= GPIO_CRH_MODE13_0;
     GPIOB->CRH &= ~GPIO_CRH_CNF13;
     
-    /* =========== TIM1 ========== */
+    // =========== TIM1 ==========
     RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
     TIM1->PSC = 2000 - 1;
     TIM1->ARR = 36000 - 1;
@@ -77,13 +51,13 @@ int main(void)
     NVIC_SetPriority(TIM1_UP_IRQn, 15);
     NVIC_EnableIRQ(TIM1_UP_IRQn);
 
-    GPIOB->ODR &= ~GPIO_ODR_ODR13; //LOW
+    GPIOB->ODR &= ~GPIO_ODR_ODR13; // USB disable
     for (int i = 0; i < 1000000; i++) {
         __NOP();
     };
 
     USBLIB_Init();
-    GPIOB->ODR |= GPIO_ODR_ODR13; //UP
+    GPIOB->ODR |= GPIO_ODR_ODR13; // USB enable
 
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
     while (1) {
@@ -100,11 +74,9 @@ void TIM1_UP_IRQHandler() {
     TIM1->SR &= ~TIM_SR_UIF;
     GPIOB->ODR ^= GPIO_ODR_ODR12;
 
-//    if (_LineState.L) {      //App connected to the virtual port
-//        USBLIB_Transmit((uint16_t *)"Welcome to the club!\r\n", 22);
-//    } else {
-//        USBLIB_Transmit((uint16_t *)"Bye bye!\r\n", 10);
-//    }
+    if (_LineState.L) {      //App connected to the virtual port
+        USBLIB_Transmit((uint16_t *)"Welcome to the club!\r\n", 22);
+    }
 }
 
 void uUSBLIB_DataReceivedHandler(uint16_t *Data, uint16_t Length)
