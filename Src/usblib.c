@@ -16,7 +16,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "stm32f1xx.h"
+#include "stm32l0xx.h"
 #include "usblib.h"
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +40,7 @@ USBLIB_EPData EpData[EPCOUNT] =
 
 void USBLIB_Init(void)
 {
-    NVIC_DisableIRQ(USB_LP_CAN1_RX0_IRQn);
+    NVIC_DisableIRQ(USB_IRQn);
     RCC->APB1ENR |= RCC_APB1ENR_USBEN;
 
     USB->CNTR   = USB_CNTR_FRES; /* Force USB Reset */
@@ -48,7 +48,7 @@ void USBLIB_Init(void)
     USB->DADDR  = 0;
     USB->ISTR   = 0;
     USB->CNTR   = USB_CNTR_RESETM;
-    NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
+    NVIC_EnableIRQ(USB_IRQn);
 }
 
 USBLIB_LineCoding lineCoding = {115200, 0, 0, 8};
@@ -305,7 +305,7 @@ void USBLIB_EPHandler(uint16_t Status)
     if (EP & EP_CTR_RX) { //something received
         USBLIB_Pma2EPBuf2(EPn);
         if (EPn == 0) { //If control endpoint
-            if (EP & USB_EP0R_SETUP) {
+            if (EP & USB_EP_SETUP) {
                 SetupPacket = (USBLIB_SetupPacket *)EpData[EPn].pRX_BUFF;
                 switch (SetupPacket->bRequest) {
                 case USB_REQUEST_SET_ADDRESS:
@@ -373,7 +373,7 @@ void USBLIB_EPHandler(uint16_t Status)
     }
 }
 
-void USB_LP_CAN1_RX0_IRQHandler()
+void USB_IRQHandler()
 {
     if (USB->ISTR & USB_ISTR_RESET) { // Reset
         USB->ISTR &= ~USB_ISTR_RESET;
