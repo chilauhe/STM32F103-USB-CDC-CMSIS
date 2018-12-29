@@ -41,13 +41,13 @@ int main(void)
     GPIOB->MODER = (GPIOB->MODER & ~(GPIO_MODER_MODE8)) | (GPIO_MODER_MODE8_0);
 
     // =========== TIM2 ==========
-//    RCC->APB2ENR |= RCC_APB2ENR_TIM2EN;
-//    TIM2->PSC = 1000 - 1;
-//    TIM2->ARR = 32000 - 1;
-//    TIM2->DIER |= TIM_DIER_UIE;
-//    TIM2->CR1 = TIM_CR1_CEN | TIM_CR1_ARPE;
-//    NVIC_SetPriority(TIM2_IRQn, 15);
-//    NVIC_EnableIRQ(TIM2_UP_IRQn);
+    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
+    TIM2->PSC = 1000 - 1;
+    TIM2->ARR = 32000 - 1;
+    TIM2->DIER |= TIM_DIER_UIE;
+    TIM2->CR1 = TIM_CR1_CEN | TIM_CR1_ARPE;
+    NVIC_SetPriority(TIM2_IRQn, 15);
+    NVIC_EnableIRQ(TIM2_IRQn);
 
     USBLIB_Init();
 
@@ -140,13 +140,13 @@ void Delay(uint32_t delay) {
     while (stick - start < delay);
 }
 
-void TIM2_UP_IRQHandler() {
-    TIM2->SR &= ~TIM_SR_UIF;
+void TIM2_IRQHandler() {
+    TIM2->SR &= ~TIM_SR_UIF;  // clear the UIF flag
     GPIOB->ODR ^= GPIO_ODR_OD8;
 
-    if (_LineState.L) {      // App connected to the virtual port
-        USBLIB_Transmit((uint16_t *)"Welcome to the club!\r\n", 22);
-    }
+//    if (_LineState.L) {      // App connected to the virtual port
+//        USBLIB_Transmit((uint16_t *)"Welcome to the club!\r\n", 22);
+//    }
 }
 
 void uUSBLIB_DataReceivedHandler(uint16_t *Data, uint16_t Length)
