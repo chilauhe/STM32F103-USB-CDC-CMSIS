@@ -21,11 +21,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 #define __SECTION_PMA __attribute__((section(".PMA"))) /* USB PMA */
+#define SIZE_OF_BTABLE 64
 
 volatile USB_TypeDef_ *USB_ = (USB_TypeDef_ *)USB_BASE;
 __SECTION_PMA volatile USBLIB_EPBuf EPBufTable[EPCOUNT];
-//volatile uint32_t     USBEP[EPCOUNT] __attribute__((at(USB_BASE)));
 #define USBEP ((volatile uint32_t *)USB_BASE)
 USBLIB_SetupPacket   *SetupPacket;
 volatile uint8_t      DeviceAddress = 0;
@@ -41,14 +42,23 @@ USBLIB_EPData EpData[EPCOUNT] =
 void USBLIB_Init(void)
 {
     NVIC_DisableIRQ(USB_IRQn);
+    // Выключаем подтяжку на D+
+    USB -> BCDR &= ~USB_BCDR_DPPU;
     RCC->APB1ENR |= RCC_APB1ENR_USBEN;
 
+    uint8_t *addr = (uint8_t *)USB_PMAADDR;
+    for(uint16_t i=0; i<1024; i++) {
+        *addr = 0;
+        addr++;
+    }
     USB->CNTR   = USB_CNTR_FRES; /* Force USB Reset */
     USB->BTABLE = 0;
     USB->DADDR  = 0;
     USB->ISTR   = 0;
     USB->CNTR   = USB_CNTR_RESETM;
     NVIC_EnableIRQ(USB_IRQn);
+    // Включаем подтяжку на D+
+    USB -> BCDR |= USB_BCDR_DPPU;
 }
 
 USBLIB_LineCoding lineCoding = {115200, 0, 0, 8};
@@ -179,17 +189,18 @@ void USBLIB_Reset(void)
 {
     /* *********** WARNING ********** */
     /* We DO NOT CHANGE BTABLE!! So we assume that buffer table start from address 0!!! */
+    GPIOA->ODR ^= GPIO_ODR_OD10;
 
-    uint16_t Addr = sizeof(EPBufTable);
+    uint16_t Addr = SIZE_OF_BTABLE;
     for (uint8_t i = 0; i < EPCOUNT; i++) {
-        EPBufTable[i].TX_Address.Value = Addr;
-        EPBufTable[i].TX_Count.Value   = 0;
+        EPBufTable[i].TX_Address = Addr;
+        EPBufTable[i].TX_Count   = 0;
         Addr += EpData[i].TX_Max;
-        EPBufTable[i].RX_Address.Value = Addr;
+        EPBufTable[i].RX_Address = Addr;
         if (EpData[i].RX_Max >= 64)
-            EPBufTable[i].RX_Count.Value = 0x8000 | ((EpData[i].RX_Max / 64) << 10);
+            EPBufTable[i].RX_Count = (uint16_t) (0x8000 | ((EpData[i].RX_Max / 64) << 10));
         else
-            EPBufTable[i].RX_Count.Value = ((EpData[i].RX_Max / 2) << 10);
+            EPBufTable[i].RX_Count = (uint16_t) ((EpData[i].RX_Max / 2) << 10);
 
         Addr += EpData[i].RX_Max;
 
@@ -206,27 +217,29 @@ void USBLIB_Reset(void)
     USB->ISTR   = 0x00;
     USB->BTABLE = 0x00;
     USB->DADDR  = USB_DADDR_EF;
+
+    GPIOA->ODR ^= GPIO_ODR_OD10;
 }
 
 void USBLIB_setStatTx(uint8_t EPn, uint16_t Stat)
 {
     register uint16_t val = *(uint16_t *)&(USB_->EPR[EPn]);
-    *(uint16_t *)&(USB_->EPR[EPn])         = (val ^ (Stat & EP_STAT_TX)) & (EP_MASK | EP_STAT_TX);
+    *(uint16_t *)&(USB_->EPR[EPn]) = (uint16_t) ((val ^ (Stat & EP_STAT_TX)) & (EP_MASK | EP_STAT_TX));
 }
 
 void USBLIB_setStatRx(uint8_t EPn, uint16_t Stat)
 {
     register uint16_t val = *(uint16_t *)&(USB_->EPR[EPn]);
-    *(uint16_t *)&(USB_->EPR[EPn])         = (val ^ (Stat & EP_STAT_RX)) & (EP_MASK | EP_STAT_RX);
+    *(uint16_t *)&(USB_->EPR[EPn]) = (uint16_t) ((val ^ (Stat & EP_STAT_RX)) & (EP_MASK | EP_STAT_RX));
 }
 
 void USBLIB_Pma2EPBuf2(uint8_t EPn)
 {
-    uint8_t   Count = EpData[EPn].lRX = (EPBufTable[EPn].RX_Count.Value & 0x3FF);
-    uint32_t *Address                 = (uint32_t *)(USB_PBUFFER + EPBufTable[EPn].RX_Address.Value * 2);
-    uint16_t *Distination             = (uint16_t *)EpData[EPn].pRX_BUFF;
+    uint8_t Count = EpData[EPn].lRX = (EPBufTable[EPn].RX_Count & 0x3FF);
+    uint16_t *Address = (uint16_t *)(USB_PBUFFER + EPBufTable[EPn].RX_Address);
+    uint16_t *Distination = EpData[EPn].pRX_BUFF;
     for (uint8_t i = 0; i < Count; i++) {
-        *(uint16_t *)Distination = *(uint16_t *)Address;
+        *Distination = *Address;
         Distination++;
         Address++;
     }
@@ -234,17 +247,17 @@ void USBLIB_Pma2EPBuf2(uint8_t EPn)
 
 void USBLIB_EPBuf2Pma(uint8_t EPn)
 {
-    uint32_t *Distination;
+    uint16_t *Distination;
     uint16_t *TX_Buff;
     uint8_t   Count;
 
-    Count                          = EpData[EPn].lTX <= EpData[EPn].TX_Max ? EpData[EPn].lTX : EpData[EPn].TX_Max;
-    EPBufTable[EPn].TX_Count.Value = Count;
+    Count = (uint8_t) (EpData[EPn].lTX <= EpData[EPn].TX_Max ? EpData[EPn].lTX : EpData[EPn].TX_Max);
+    EPBufTable[EPn].TX_Count = Count;
 
     TX_Buff = EpData[EPn].pTX_BUFF;
-    Distination = (uint32_t *)(USB_PBUFFER + EPBufTable[EPn].TX_Address.Value * 2);
+    Distination = (uint16_t *)(USB_PBUFFER + EPBufTable[EPn].TX_Address);
     for (uint8_t i = 0; i < (Count + 1) / 2; i++) {
-        *(uint16_t *)Distination = *TX_Buff;
+        *Distination = *TX_Buff;
         Distination++;
         TX_Buff++;
     }
@@ -254,13 +267,12 @@ void USBLIB_EPBuf2Pma(uint8_t EPn)
 
 void USBLIB_SendData(uint8_t EPn, uint16_t *Data, uint16_t Length)
 {
-
     EpData[EPn].lTX      = Length;
     EpData[EPn].pTX_BUFF = Data;
     if (Length > 0) {
         USBLIB_EPBuf2Pma(EPn);
     } else {
-        EPBufTable[EPn].TX_Count.Value = 0;
+        EPBufTable[EPn].TX_Count = 0;
     }
     USBLIB_setStatTx(EPn, TX_VALID);
 }
@@ -299,8 +311,10 @@ void USBLIB_GetDescriptor(USBLIB_SetupPacket *SPacket)
 
 void USBLIB_EPHandler(uint16_t Status)
 {
+    GPIOA->ODR ^= GPIO_ODR_OD10;
+
     uint16_t DeviceConfigured = 0, DeviceStatus = 0;
-    uint8_t  EPn = Status & USB_ISTR_EP_ID;
+    uint8_t  EPn = (uint8_t) (Status & USB_ISTR_EP_ID);
     uint32_t EP  = USBEP[EPn];
     if (EP & EP_CTR_RX) { //something received
         USBLIB_Pma2EPBuf2(EPn);
@@ -351,14 +365,14 @@ void USBLIB_EPHandler(uint16_t Status)
             }
         } else { // Got data from another EP
             // Call user function
-            uUSBLIB_DataReceivedHandler(EpData[EPn].pRX_BUFF, EpData[EPn].lRX);
+            uUSBLIB_DataReceivedHandler(EpData[EPn].pRX_BUFF, (uint16_t) EpData[EPn].lRX);
         }
         USBEP[EPn] &= 0x78f;
         USBLIB_setStatRx(EPn, RX_VALID);
     }
     if (EP & EP_CTR_TX) { //something transmitted
         if (DeviceAddress) {
-            USB->DADDR    = DeviceAddress | 0x80;
+            USB->DADDR    = (uint16_t) (DeviceAddress | 0x80);
             DeviceAddress = 0;
         }
 
@@ -371,6 +385,8 @@ void USBLIB_EPHandler(uint16_t Status)
 
         USBEP[EPn] &= 0x870f;
     }
+
+    GPIOA->ODR ^= GPIO_ODR_OD10;
 }
 
 void USB_IRQHandler()

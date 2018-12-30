@@ -32,9 +32,13 @@ int main(void)
 
     // ===== GPIO init =====
     RCC->IOPENR |= RCC_IOPENR_GPIOAEN | RCC_IOPENR_GPIOBEN;
-    // output mode (01) for PB6 PB7 - debug signal out
-    GPIOB->MODER = (GPIOB->MODER & ~(GPIO_MODER_MODE6|GPIO_MODER_MODE7)) | (GPIO_MODER_MODE6_0|GPIO_MODER_MODE7_0);
-    GPIOA->OSPEEDR = GPIOA->OSPEEDR | GPIO_OSPEEDER_OSPEED6 | GPIO_OSPEEDER_OSPEED7; // very high speed
+    // output mode (01) for PA8 PA10 - debug signal out
+    GPIOA->MODER = (GPIOA->MODER & ~(GPIO_MODER_MODE8 | GPIO_MODER_MODE10)) | (GPIO_MODER_MODE8_0 | GPIO_MODER_MODE10_0);
+    GPIOA->OSPEEDR = GPIOA->OSPEEDR | GPIO_OSPEEDER_OSPEED8 | GPIO_OSPEEDER_OSPEED10; // very high speed
+
+    GPIOA->ODR ^= GPIO_ODR_OD8;
+    Delay(2);
+    GPIOA->ODR ^= GPIO_ODR_OD8;
 
     // output mode (01) for PBA PB8 - LED pins
     GPIOA->MODER = (GPIOA->MODER & ~(GPIO_MODER_MODE4)) | (GPIO_MODER_MODE4_0);

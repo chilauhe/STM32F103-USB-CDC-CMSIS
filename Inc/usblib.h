@@ -239,15 +239,10 @@ typedef struct {
 } USB_TypeDef_;
 
 typedef struct {
-    uint16_t Value;
-    uint16_t _res;
-} USBLIB_PBElement;
-
-typedef struct {
-    USBLIB_PBElement TX_Address;
-    USBLIB_PBElement TX_Count;
-    USBLIB_PBElement RX_Address;
-    USBLIB_PBElement RX_Count;
+    uint16_t TX_Address;
+    uint16_t TX_Count;
+    uint16_t RX_Address;
+    uint16_t RX_Count;
 } USBLIB_EPBuf;
 
 typedef struct {
