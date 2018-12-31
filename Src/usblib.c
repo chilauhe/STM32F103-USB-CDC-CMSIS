@@ -16,7 +16,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "stm32l0xx.h"
+#include "stm32f0xx.h"
 #include "usblib.h"
 #include <stdlib.h>
 #include <string.h>
@@ -189,7 +189,6 @@ void USBLIB_Reset(void)
 {
     /* *********** WARNING ********** */
     /* We DO NOT CHANGE BTABLE!! So we assume that buffer table start from address 0!!! */
-    GPIOA->ODR ^= GPIO_ODR_OD10;
 
     uint16_t Addr = SIZE_OF_BTABLE;
     for (uint8_t i = 0; i < EPCOUNT; i++) {
@@ -217,8 +216,6 @@ void USBLIB_Reset(void)
     USB->ISTR   = 0x00;
     USB->BTABLE = 0x00;
     USB->DADDR  = USB_DADDR_EF;
-
-    GPIOA->ODR ^= GPIO_ODR_OD10;
 }
 
 void USBLIB_setStatTx(uint8_t EPn, uint16_t Stat)
@@ -311,8 +308,6 @@ void USBLIB_GetDescriptor(USBLIB_SetupPacket *SPacket)
 
 void USBLIB_EPHandler(uint16_t Status)
 {
-    GPIOA->ODR ^= GPIO_ODR_OD10;
-
     uint16_t DeviceConfigured = 0, DeviceStatus = 0;
     uint8_t  EPn = (uint8_t) (Status & USB_ISTR_EP_ID);
     uint32_t EP  = USBEP[EPn];
@@ -385,8 +380,6 @@ void USBLIB_EPHandler(uint16_t Status)
 
         USBEP[EPn] &= 0x870f;
     }
-
-    GPIOA->ODR ^= GPIO_ODR_OD10;
 }
 
 void USB_IRQHandler()
