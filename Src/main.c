@@ -67,9 +67,15 @@ void SetClocks() {
     RCC->CR |= RCC_CR_HSION;
     while (RCC->CR & RCC_CR_HSIRDY == RESET);
 
+// === Enable the VREF for HSI48
+    SET_BIT(RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN);
+    SYSCFG->CFGR3 |= 0x01;
+    while (!(SYSCFG->CFGR3 & SYSCFG_CFGR3_VREFINT_RDYF));
+    SYSCFG->CFGR3 |= SYSCFG_CFGR3_ENREF_HSI48;
+    while (!(SYSCFG->CFGR3 & SYSCFG_CFGR3_REF_HSI48_RDYF));
+
 // ============== HSI48
     SET_BIT(RCC->CRRCR, RCC_CRRCR_HSI48ON);
-    SET_BIT(RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN);
     while (RCC->CRRCR & RCC_CRRCR_HSI48RDY == RESET);
 
 // ============== PLL
@@ -148,9 +154,9 @@ void TIM2_IRQHandler() {
     TIM2->SR &= ~TIM_SR_UIF;  // clear the UIF flag
     GPIOB->ODR ^= GPIO_ODR_OD8;
 
-//    if (_LineState.L) {      // App connected to the virtual port
-//        USBLIB_Transmit((uint16_t *)"Welcome to the club!\r\n", 22);
-//    }
+    if (_LineState.L & 0x01) {      // App connected to the virtual port
+        USBLIB_Transmit((uint16_t *) "Welcome to the club!\r\n", 22);
+    }
 }
 
 void uUSBLIB_DataReceivedHandler(uint16_t *Data, uint16_t Length)
