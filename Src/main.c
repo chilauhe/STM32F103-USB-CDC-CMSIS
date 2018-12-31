@@ -36,9 +36,10 @@ int main(void)
     GPIOB->MODER = (GPIOB->MODER & ~(GPIO_MODER_MODER8)) | (GPIO_MODER_MODER8_0);
 
     // =========== TIM2 ==========
+    // set period 1 sec
     RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
     TIM2->PSC = 1000 - 1;
-    TIM2->ARR = 32000 - 1;
+    TIM2->ARR = 48000 - 1;
     TIM2->DIER |= TIM_DIER_UIE;
     TIM2->CR1 = TIM_CR1_CEN | TIM_CR1_ARPE;
     NVIC_SetPriority(TIM2_IRQn, 15);
@@ -76,9 +77,9 @@ void TIM2_IRQHandler() {
     TIM2->SR &= ~TIM_SR_UIF;  // clear the UIF flag
     GPIOB->ODR ^= GPIO_ODR_8;
 
-//    if (_LineState.L) {      // App connected to the virtual port
-//        USBLIB_Transmit((uint16_t *)"Welcome to the club!\r\n", 22);
-//    }
+    if (_LineState.L & 0x01) {      // App connected to the virtual port
+        USBLIB_Transmit((uint16_t *) "Welcome to the club!\r\n", 22);
+    }
 }
 
 void uUSBLIB_DataReceivedHandler(uint16_t *Data, uint16_t Length)

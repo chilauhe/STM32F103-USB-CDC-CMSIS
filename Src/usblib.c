@@ -42,22 +42,20 @@ USBLIB_EPData EpData[EPCOUNT] =
 void USBLIB_Init(void)
 {
     NVIC_DisableIRQ(USB_IRQn);
-    // Выключаем подтяжку на D+
+    // disable D+ Pull-up
     USB -> BCDR &= ~USB_BCDR_DPPU;
     RCC->APB1ENR |= RCC_APB1ENR_USBEN;
 
-    uint8_t *addr = (uint8_t *)USB_PMAADDR;
-    for(uint16_t i=0; i<1024; i++) {
-        *addr = 0;
-        addr++;
-    }
+    // remap USB pins. Only for STM32F042F6
+    SYSCFG -> CFGR1 |= SYSCFG_CFGR1_PA11_PA12_RMP;
+
     USB->CNTR   = USB_CNTR_FRES; /* Force USB Reset */
     USB->BTABLE = 0;
     USB->DADDR  = 0;
     USB->ISTR   = 0;
     USB->CNTR   = USB_CNTR_RESETM;
     NVIC_EnableIRQ(USB_IRQn);
-    // Включаем подтяжку на D+
+    // enable D+ Pull-up
     USB -> BCDR |= USB_BCDR_DPPU;
 }
 
