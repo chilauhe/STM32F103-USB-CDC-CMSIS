@@ -34,16 +34,16 @@ volatile USBLIB_WByte LineState;
 
 USBLIB_EPData EpData[EPCOUNT] =
     {
-        {0, EP_CONTROL, 64, 64, 0, 0, 0, 0, 64, 0},
-        {1, EP_INTERRUPT, 16, 16, 0, 0, 0, 0, 64, 0},
-        {2, EP_BULK, 64, 64, 0, 0, 0, 0, 64, 0},  //IN  (Device -> Host)
-        {3, EP_BULK, 64, 64, 0, 0, 0, 0, 64, 0}}; //OUT (Host   -> Device)
+        {0, EP_CONTROL, 64, 64, 0, 0, 0, 0, 1},
+        {1, EP_INTERRUPT, 16, 16, 0, 0, 0, 0, 1},
+        {2, EP_BULK, 64, 64, 0, 0, 0, 0, 1},  //IN  (Device -> Host)
+        {3, EP_BULK, 64, 64, 0, 0, 0, 0, 1}}; //OUT (Host   -> Device)
 
 void USBLIB_Init(void)
 {
     NVIC_DisableIRQ(USB_IRQn);
     // disable D+ Pull-up
-    USB -> BCDR &= ~USB_BCDR_DPPU;
+    USB->BCDR &= ~USB_BCDR_DPPU;
     RCC->APB1ENR |= RCC_APB1ENR_USBEN;
 
     USB->CNTR   = USB_CNTR_FRES; /* Force USB Reset */
@@ -53,7 +53,7 @@ void USBLIB_Init(void)
     USB->CNTR   = USB_CNTR_RESETM;
     NVIC_EnableIRQ(USB_IRQn);
     // enable D+ Pull-up
-    USB -> BCDR |= USB_BCDR_DPPU;
+    USB->BCDR |= USB_BCDR_DPPU;
 }
 
 USBLIB_LineCoding lineCoding = {115200, 0, 0, 8};
@@ -255,10 +255,18 @@ void USBLIB_EPBuf2Pma(uint8_t EPn)
     }
     EpData[EPn].lTX -= Count;
     EpData[EPn].pTX_BUFF = TX_Buff;
+    EpData[EPn].TX_BUFF_FREE = 0;
 }
 
 void USBLIB_SendData(uint8_t EPn, uint16_t *Data, uint16_t Length)
 {
+    // wait till TX buffer busy. ~3 ms
+    uint16_t timeout = 3000;
+    while (--timeout>0 && EpData[EPn].TX_BUFF_FREE == 0);
+    if( EpData[EPn].TX_BUFF_FREE == 0 ) {
+        return;
+    }
+
     EpData[EPn].lTX      = Length;
     EpData[EPn].pTX_BUFF = Data;
     if (Length > 0) {
@@ -366,6 +374,8 @@ void USBLIB_EPHandler(uint16_t Status)
             DeviceAddress = 0;
         }
 
+        EpData[EPn].TX_BUFF_FREE = 1;
+
         if (EpData[EPn].lTX) { //Have to transmit something?
             USBLIB_EPBuf2Pma(EPn);
             USBLIB_setStatTx(EPn, TX_VALID);
@@ -425,11 +435,11 @@ void USB_IRQHandler()
     USB->ISTR = 0;
 }
 
-void USBLIB_Transmit(uint16_t *Data, uint16_t Length)
+void USBLIB_Transmit(void *Data, uint16_t Length)
 {
-//    if (LineState.L) {
+    if (LineState.L & 0x01) {
         USBLIB_SendData(2, Data, Length);
-//    }
+    }
 }
 
 __weak void uUSBLIB_DataReceivedHandler(uint16_t *Data, uint16_t Length)
