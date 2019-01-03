@@ -59,6 +59,7 @@ int main(void)
     while (1) {
         GPIOA->ODR ^= GPIO_ODR_OD4;
         Delay(300);
+        USBLIB_Transmit((uint16_t *)   "USBLIB_Transmit((uint16_t *) USBLIB_Transmit((uint16_t *) USBLIB_Transmit((uint16_t *)\r\n", 88);
     }
 }
 
@@ -154,7 +155,7 @@ void TIM2_IRQHandler() {
     TIM2->SR &= ~TIM_SR_UIF;  // clear the UIF flag
     GPIOB->ODR ^= GPIO_ODR_OD8;
 
-    if (_LineState.L & 0x01) {      // App connected to the virtual port
+    if ((_LineState.L & 0x01) && USBLIB_ReadyToTransmit(2)) {      // App connected to the virtual port
         USBLIB_Transmit((uint16_t *) "Welcome to the club!\r\n", 22);
     }
 }
