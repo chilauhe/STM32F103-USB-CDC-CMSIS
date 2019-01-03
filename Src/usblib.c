@@ -259,26 +259,27 @@ void USBLIB_EPBuf2Pma(uint8_t EPn)
     uint16_t *Distination;
     uint16_t *TX_Buff;
     register uint8_t   Count;
+    register USBLIB_EPData *ep = &EpData[EPn];
 
-    Count = (uint8_t) (EpData[EPn].lTX <= EpData[EPn].TX_Max ? EpData[EPn].lTX : EpData[EPn].TX_Max);
+    Count = (uint8_t) (ep->lTX <= ep->TX_Max ? ep->lTX : ep->TX_Max);
     EPBufTable[EPn].TX_Count = Count;
 
-    TX_Buff = EpData[EPn].pTX_BUFF;
+    TX_Buff = ep->pTX_BUFF;
     Distination = (uint16_t *)(USB_PBUFFER + EPBufTable[EPn].TX_Address);
 
     dmacpy(Distination, TX_Buff, (uint8_t) ((Count + 1) / 2));
 
-    EpData[EPn].lTX -= Count;
-    EpData[EPn].pTX_BUFF = TX_Buff + ((Count + 1) / 2);
-    EpData[EPn].TX_PMA_FREE = 0;
+    ep->lTX -= Count;
+    ep->pTX_BUFF = TX_Buff + ((Count + 1) / 2);
+    ep->TX_PMA_FREE = 0;
 }
 
 void USBLIB_SendData(uint8_t EPn, uint16_t *Data, uint16_t Length)
 {
     // wait till TX buffer busy. ~3 ms
     uint16_t timeout = 3000;
-    while (--timeout>0 && EpData[EPn].TX_PMA_FREE == 0);
-    if( EpData[EPn].TX_PMA_FREE == 0 ) {
+    while (--timeout > 0 && EpData[EPn].TX_PMA_FREE == 0);
+    if (EpData[EPn].TX_PMA_FREE == 0) {
         return;
     }
 
