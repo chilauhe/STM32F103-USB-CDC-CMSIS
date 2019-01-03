@@ -18,8 +18,6 @@
 
 #include "stm32l0xx.h"
 #include "usblib.h"
-#include <stdlib.h>
-#include <string.h>
 
 
 #define __SECTION_PMA __attribute__((section(".PMA"))) /* USB PMA */
