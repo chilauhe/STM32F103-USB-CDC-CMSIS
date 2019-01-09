@@ -22,21 +22,24 @@
 #include <string.h>
 
 #define __SECTION_PMA __attribute__((section(".PMA"))) /* USB PMA */
+#define SIZE_OF_BTABLE 64
 
 volatile USB_TypeDef_ *USB_ = (USB_TypeDef_ *)USB_BASE;
 __SECTION_PMA volatile USBLIB_EPBuf EPBufTable[EPCOUNT];
-//volatile uint32_t     USBEP[EPCOUNT] __attribute__((at(USB_BASE)));
 #define USBEP ((volatile uint32_t *)USB_BASE)
 USBLIB_SetupPacket   *SetupPacket;
 volatile uint8_t      DeviceAddress = 0;
 volatile USBLIB_WByte LineState;
 
-USBLIB_EPData EpData[EPCOUNT] =
-    {
-        {0, EP_CONTROL, 64, 64, 0, 0, 0, 0, 64, 0},
-        {1, EP_INTERRUPT, 16, 16, 0, 0, 0, 0, 64, 0},
-        {2, EP_BULK, 64, 64, 0, 0, 0, 0, 64, 0},  //IN  (Device -> Host)
-        {3, EP_BULK, 64, 64, 0, 0, 0, 0, 64, 0}}; //OUT (Host   -> Device)
+uint8_t rxBuf0[64];
+uint8_t rxBuf1[16];
+uint8_t rxBuf2[64];
+
+USBLIB_EPData EpData[EPCOUNT] = {
+        {0, EP_CONTROL,   64, 64, 0, 0, (uint16_t *) rxBuf0, 0, 1},
+        {1, EP_INTERRUPT, 16, 16, 0, 0, (uint16_t *) rxBuf1, 0, 1},
+        {2, EP_BULK,      64, 64, 0, 0, 0,                   0, 1},  // IN  (Device -> Host)
+        {3, EP_BULK,      64, 64, 0, 0, (uint16_t *) rxBuf2, 0, 1}}; // OUT (Host   -> Device)
 
 void USBLIB_Init(void)
 {
@@ -180,21 +183,18 @@ void USBLIB_Reset(void)
     /* *********** WARNING ********** */
     /* We DO NOT CHANGE BTABLE!! So we assume that buffer table start from address 0!!! */
 
-    uint16_t Addr = sizeof(EPBufTable);
+    uint16_t Addr = SIZE_OF_BTABLE;
     for (uint8_t i = 0; i < EPCOUNT; i++) {
-        EPBufTable[i].TX_Address.Value = Addr;
-        EPBufTable[i].TX_Count.Value   = 0;
+        EPBufTable[i].TX_Address = Addr;
+        EPBufTable[i].TX_Count   = 0;
         Addr += EpData[i].TX_Max;
-        EPBufTable[i].RX_Address.Value = Addr;
+        EPBufTable[i].RX_Address = Addr;
         if (EpData[i].RX_Max >= 64)
-            EPBufTable[i].RX_Count.Value = 0x8000 | ((EpData[i].RX_Max / 64) << 10);
+            EPBufTable[i].RX_Count = 0x8000 | ((EpData[i].RX_Max / 64) << 10);
         else
-            EPBufTable[i].RX_Count.Value = ((EpData[i].RX_Max / 2) << 10);
+            EPBufTable[i].RX_Count = ((EpData[i].RX_Max / 2) << 10);
 
         Addr += EpData[i].RX_Max;
-
-        if (!EpData[i].pRX_BUFF)
-            EpData[i].pRX_BUFF = (uint16_t *)malloc(EpData[i].RX_Max);
 
         *(uint16_t *)&(USB_->EPR[i]) = (uint16_t)(EpData[i].Number | EpData[i].Type | RX_VALID | TX_NAK);
     }
@@ -211,19 +211,19 @@ void USBLIB_Reset(void)
 void USBLIB_setStatTx(uint8_t EPn, uint16_t Stat)
 {
     register uint16_t val = *(uint16_t *)&(USB_->EPR[EPn]);
-    *(uint16_t *)&(USB_->EPR[EPn])         = (val ^ (Stat & EP_STAT_TX)) & (EP_MASK | EP_STAT_TX);
+    *(uint16_t *)&(USB_->EPR[EPn]) = (val ^ (Stat & EP_STAT_TX)) & (EP_MASK | EP_STAT_TX);
 }
 
 void USBLIB_setStatRx(uint8_t EPn, uint16_t Stat)
 {
     register uint16_t val = *(uint16_t *)&(USB_->EPR[EPn]);
-    *(uint16_t *)&(USB_->EPR[EPn])         = (val ^ (Stat & EP_STAT_RX)) & (EP_MASK | EP_STAT_RX);
+    *(uint16_t *)&(USB_->EPR[EPn]) = (val ^ (Stat & EP_STAT_RX)) & (EP_MASK | EP_STAT_RX);
 }
 
 void USBLIB_Pma2EPBuf2(uint8_t EPn)
 {
-    uint8_t   Count = EpData[EPn].lRX = (EPBufTable[EPn].RX_Count.Value & 0x3FF);
-    uint32_t *Address                 = (uint32_t *)(USB_PBUFFER + EPBufTable[EPn].RX_Address.Value * 2);
+    uint8_t   Count = EpData[EPn].lRX = (EPBufTable[EPn].RX_Count & 0x3FF);
+    uint32_t *Address                 = (uint32_t *)(USB_PBUFFER + EPBufTable[EPn].RX_Address * 2);
     uint16_t *Distination             = (uint16_t *)EpData[EPn].pRX_BUFF;
     for (uint8_t i = 0; i < Count; i++) {
         *(uint16_t *)Distination = *(uint16_t *)Address;
@@ -238,11 +238,11 @@ void USBLIB_EPBuf2Pma(uint8_t EPn)
     uint16_t *TX_Buff;
     uint8_t   Count;
 
-    Count                          = EpData[EPn].lTX <= EpData[EPn].TX_Max ? EpData[EPn].lTX : EpData[EPn].TX_Max;
-    EPBufTable[EPn].TX_Count.Value = Count;
+    Count = EpData[EPn].lTX <= EpData[EPn].TX_Max ? EpData[EPn].lTX : EpData[EPn].TX_Max;
+    EPBufTable[EPn].TX_Count = Count;
 
     TX_Buff = EpData[EPn].pTX_BUFF;
-    Distination = (uint32_t *)(USB_PBUFFER + EPBufTable[EPn].TX_Address.Value * 2);
+    Distination = (uint32_t *)(USB_PBUFFER + EPBufTable[EPn].TX_Address * 2);
     for (uint8_t i = 0; i < (Count + 1) / 2; i++) {
         *(uint16_t *)Distination = *TX_Buff;
         Distination++;
@@ -254,13 +254,19 @@ void USBLIB_EPBuf2Pma(uint8_t EPn)
 
 void USBLIB_SendData(uint8_t EPn, uint16_t *Data, uint16_t Length)
 {
+    // wait till TX buffer busy. ~3 ms
+    uint16_t timeout = 3000;
+    while (--timeout > 0 && EpData[EPn].TX_PMA_FREE == 0);
+    if (EpData[EPn].TX_PMA_FREE == 0) {
+        return;
+    }
 
     EpData[EPn].lTX      = Length;
     EpData[EPn].pTX_BUFF = Data;
     if (Length > 0) {
         USBLIB_EPBuf2Pma(EPn);
     } else {
-        EPBufTable[EPn].TX_Count.Value = 0;
+        EPBufTable[EPn].TX_Count = 0;
     }
     USBLIB_setStatTx(EPn, TX_VALID);
 }
@@ -362,6 +368,8 @@ void USBLIB_EPHandler(uint16_t Status)
             DeviceAddress = 0;
         }
 
+        EpData[EPn].TX_PMA_FREE = 1;
+
         if (EpData[EPn].lTX) { //Have to transmit something?
             USBLIB_EPBuf2Pma(EPn);
             USBLIB_setStatTx(EPn, TX_VALID);
@@ -421,11 +429,11 @@ void USB_LP_CAN1_RX0_IRQHandler()
     USB->ISTR = 0;
 }
 
-void USBLIB_Transmit(uint16_t *Data, uint16_t Length)
+void USBLIB_Transmit(void *Data, uint16_t Length)
 {
-//    if (LineState.L) {
+    if (LineState.L & 0x01) {
         USBLIB_SendData(2, Data, Length);
-//    }
+    }
 }
 
 __weak void uUSBLIB_DataReceivedHandler(uint16_t *Data, uint16_t Length)

@@ -63,6 +63,7 @@ int main(void)
     while (1) {
         GPIOB->ODR ^= GPIO_ODR_ODR11;
         DWT_Delay_ms(500);
+        USBLIB_Transmit((uint16_t *) "USBLIB_Transmit((uint16_t *) USBLIB_Transmit((uint16_t *) USBLIB_Transmit((uint16_t *)\r\n", 88);
     }
 }
 
@@ -74,8 +75,8 @@ void TIM1_UP_IRQHandler() {
     TIM1->SR &= ~TIM_SR_UIF;
     GPIOB->ODR ^= GPIO_ODR_ODR12;
 
-    if (_LineState.L) {      //App connected to the virtual port
-        USBLIB_Transmit((uint16_t *)"Welcome to the club!\r\n", 22);
+    if ((_LineState.L & 0x01) && USBLIB_ReadyToTransmit(2)) {      // App connected to the virtual port
+        USBLIB_Transmit((uint16_t *) "Welcome to the club!\r\n", 22);
     }
 }
 
@@ -86,8 +87,6 @@ void uUSBLIB_DataReceivedHandler(uint16_t *Data, uint16_t Length)
 
 void uUSBLIB_LineStateHandler(USBLIB_WByte LineState)
 {
-    if (LineState.L) {      //App connected to the virtual port
+//    if (LineState.L)      // App connected to the virtual port
         _LineState = LineState;
-        TIM1->CR1 = TIM_CR1_CEN | TIM_CR1_ARPE;
-    }
 }
