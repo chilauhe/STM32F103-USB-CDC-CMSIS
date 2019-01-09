@@ -251,12 +251,10 @@ typedef struct {
     uint8_t   TX_Max;       // Max TX EP Buffer
     uint8_t   RX_Max;       // Max RT EP Buffer
     uint16_t *pTX_BUFF;     // TX Buffer pointer
-    uint32_t  lTX;          // TX Data length
+    uint16_t  lTX;          // TX Data length
     uint16_t *pRX_BUFF;     // RX Buffer pointer
-    uint32_t  lRX;          // RX Data length
-    uint8_t   TX_BUFF_SIZE; // Max length of pTX_BUFF buf, NOT a EP Buf!!!
-    uint32_t  lRX_PMA;      // ?
-
+    uint8_t   lRX;          // RX Data length. MAX receive = 64
+    uint8_t   TX_PMA_FREE;  // is PMA tx buffer free.
 } USBLIB_EPData;
 
 typedef struct
@@ -305,13 +303,13 @@ typedef struct {
 #pragma pack(pop)
 
 void USBLIB_Init(void);
-void USBLIB_EP_Init(void);
-//void USBLIB_HandleStatus(void);
-void USBLIB_ResetUSB(void);
 void USBLIB_Reset(void);
-void USBLIB_SetEPTable(uint8_t EP, uint32_t TXAddress, uint32_t TXCount, uint32_t RXAddress, uint32_t RXCount);
-void USBLIB_LogCheckForTransmit(void);
-void USBLIB_Transmit(uint16_t *Data, uint16_t Length);
+void USBLIB_Transmit(void *Data, uint16_t Length);
+
+extern USBLIB_EPData EpData[EPCOUNT];
+__attribute__( ( always_inline ) ) __STATIC_INLINE uint8_t USBLIB_ReadyToTransmit(uint8_t num) {
+    return EpData[num].TX_PMA_FREE;
+}
 void uUSBLIB_LineStateHandler(USBLIB_WByte LineState);
 
 __weak void uUSBLIB_DataReceivedHandler(uint16_t *Data, uint16_t Length);
