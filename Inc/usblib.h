@@ -22,8 +22,8 @@
 #include "stdint.h"
 
 #define EPCOUNT 4
-//#define USB_BASE ((uint32_t)0x40005C00)
-#define USB_PBUFFER ((uint32_t)0x40006000)
+#define USB_BASE 0x40005C00
+#define USB_PBUFFER 0x40006000
 #define STRX 12
 #define STTX 4
 #define CTR_RX 0x8000
